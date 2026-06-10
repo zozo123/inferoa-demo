@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inferoa — watch an agent loop spend tokens</title>
+<meta name="description" content="Interactive simulation of inference-native agent mechanics: prefix caching, context compression, and model routing. Built on the vLLM stack." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0b09;
+  --bg2:#11110d;
+  --panel:#14140f;
+  --line:#26261d;
+  --line2:#3a3a2c;
+  --ink:#ece9dd;
+  --mut:#8d8a78;
+  --dim:#55523f;
+  --amber:#ffb454;
+  --amber-hot:#ff8e3c;
+  --cyan:#5fd7c5;
+  --cyan-dim:#2a5e56;
+  --red:#ff6b5e;
+  --green:#9ece6a;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --serif:"Instrument Serif",Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--mono);
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.13) 2px 3px);
+  mix-blend-mode:multiply;
+}
+body::after{
+  content:"";position:fixed;inset:-50%;pointer-events:none;z-index:98;opacity:.04;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 9s steps(10) infinite;
+}
+@keyframes grain{
+  0%,100%{transform:translate(0,0)}10%{transform:translate(-3%,-5%)}30%{transform:translate(4%,2%)}
+  50%{transform:translate(-2%,4%)}70%{transform:translate(5%,-3%)}90%{transform:translate(-4%,1%)}
+}
+.wrap{max-width:1100px;margin:0 auto;padding:0 22px;position:relative;z-index:1}
+
+/* ---------- masthead ---------- */
+.mast{display:flex;justify-content:space-between;align-items:center;
+  padding:16px 0;border-bottom:1px solid var(--line);font-size:12px;color:var(--mut)}
+.mast .id{color:var(--amber);letter-spacing:.08em}
+.mast a{color:var(--mut);text-decoration:none;border-bottom:1px dotted var(--dim)}
+.mast a:hover{color:var(--amber)}
+
+/* ---------- hero ---------- */
+.hero{padding:72px 0 40px;position:relative}
+.hero h1{
+  font-family:var(--serif);font-weight:400;font-size:clamp(46px,8.5vw,104px);
+  line-height:.95;letter-spacing:-.01em;
+}
+.hero h1 em{font-style:italic;color:var(--amber)}
+.hero .sub{margin-top:22px;max-width:58ch;color:var(--mut);font-size:15px}
+.hero .sub b{color:var(--ink);font-weight:500}
+.runline{display:flex;gap:14px;align-items:center;margin-top:34px;flex-wrap:wrap}
+button{
+  font-family:var(--mono);font-size:13px;cursor:pointer;border-radius:4px;
+  padding:11px 22px;border:1px solid var(--line2);background:var(--panel);color:var(--ink);
+  transition:all .15s;
+}
+button:hover{border-color:var(--amber);color:var(--amber)}
+button.primary{
+  background:var(--amber);border-color:var(--amber);color:#1a1408;font-weight:600;
+  box-shadow:0 0 24px rgba(255,180,84,.25);
+}
+button.primary:hover{background:var(--amber-hot);border-color:var(--amber-hot);color:#1a1408}
+button:disabled{opacity:.4;cursor:default}
+.keyhint{font-size:11px;color:var(--dim)}
+
+/* ---------- honesty strip ---------- */
+.honest{
+  margin-top:40px;border:1px dashed var(--line2);border-radius:4px;
+  padding:10px 16px;font-size:12px;color:var(--mut);background:rgba(255,180,84,.03);
+}
+.honest b{color:var(--amber);font-weight:500}
+
+/* ---------- console grid ---------- */
+.console{display:grid;grid-template-columns:1.45fr 1fr;gap:14px;margin:26px 0 14px}
+@media(max-width:840px){.console{grid-template-columns:1fr}}
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;
+}
+.panel .head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 14px;border-bottom:1px solid var(--line);
+  font-size:11px;letter-spacing:.14em;color:var(--mut);text-transform:uppercase;
+  background:var(--bg2);
+}
+.panel .head .live{color:var(--green)}
+.blink{animation:blink 1.1s steps(2) infinite}
+@keyframes blink{50%{opacity:.15}}
+
+/* context window viz */
+.ctx-body{padding:16px 14px}
+.ctx-label{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-bottom:8px}
+.ctx-bar{
+  display:flex;height:34px;border:1px solid var(--line2);border-radius:3px;overflow:hidden;
+  background:var(--bg);position:relative;
+}
+.seg{height:100%;transition:width .5s cubic-bezier(.2,.8,.2,1);min-width:0}
+.seg.cached{background:repeating-linear-gradient(135deg,var(--cyan-dim) 0 6px,#1d4640 6px 12px);box-shadow:inset 0 0 12px rgba(95,215,197,.25)}
+.seg.fresh{background:repeating-linear-gradient(135deg,#8a5a22 0 6px,#6e4517 6px 12px);box-shadow:inset 0 0 12px rgba(255,180,84,.3)}
+.seg.out{background:repeating-linear-gradient(135deg,#3d3d30 0 6px,#31312a 6px 12px)}
+.ctx-legend{display:flex;gap:18px;margin-top:10px;font-size:11px;color:var(--mut);flex-wrap:wrap}
+.ctx-legend .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.sw.c1{background:var(--cyan-dim)}.sw.c2{background:#8a5a22}.sw.c3{background:#3d3d30}
+.cachepct{font-size:12px;color:var(--cyan)}
+
+/* stream */
+.stream{height:330px;overflow-y:auto;padding:14px;font-size:12.5px;background:var(--bg)}
+.stream::-webkit-scrollbar{width:8px}
+.stream::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+.ln{margin-bottom:3px;white-space:pre-wrap;word-break:break-word}
+.ln .t-turn{color:var(--amber);font-weight:600}
+.ln .t-role{color:var(--cyan)}
+.ln .t-dim{color:var(--dim)}
+.ln .t-mut{color:var(--mut)}
+.ln .t-ok{color:var(--green)}
+.ln .t-red{color:var(--red)}
+.ln .t-tool{color:#c7a0ff}
+.cursor::after{content:"▌";color:var(--amber);animation:blink .8s steps(2) infinite}
+
+/* router lane */
+.router{padding:10px 14px;display:flex;flex-direction:column;gap:8px;min-height:150px}
+.route{
+  display:flex;align-items:center;gap:10px;font-size:12px;
+  border:1px solid var(--line);border-radius:4px;padding:7px 10px;background:var(--bg);
+  animation:slidein .35s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes slidein{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+.route .badge{
+  font-size:10px;padding:2px 8px;border-radius:3px;letter-spacing:.06em;font-weight:600;white-space:nowrap;
+}
+.badge.local{background:rgba(95,215,197,.12);color:var(--cyan);border:1px solid var(--cyan-dim)}
+.badge.frontier{background:rgba(255,180,84,.12);color:var(--amber);border:1px solid #6e4517}
+.route .why{color:var(--mut);flex:1}
+.route .tok{color:var(--dim);font-size:11px;white-space:nowrap}
+
+/* meters */
+.meters{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+@media(max-width:840px){.meters{grid-template-columns:repeat(2,1fr)}}
+.meter{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 16px 14px}
+.meter .v{font-size:clamp(22px,3.4vw,34px);font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.meter .v.amber{color:var(--amber)}.meter .v.cyan{color:var(--cyan)}.meter .v.green{color:var(--green)}.meter .v.red{color:var(--red)}
+.meter .l{font-size:11px;color:var(--mut);margin-top:4px;letter-spacing:.05em}
+
+/* cost race */
+.race{padding:18px 16px 20px}
+.race .row{margin-bottom:16px}
+.race .rl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px}
+.race .rl .who{color:var(--mut);letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.race .rl .amt{font-variant-numeric:tabular-nums;font-weight:600}
+.race .track{height:18px;background:var(--bg);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.race .fill{height:100%;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.fill.naive{background:repeating-linear-gradient(135deg,var(--red) 0 6px,#c4493e 6px 12px)}
+.fill.inferoa{background:repeating-linear-gradient(135deg,var(--cyan) 0 6px,#46b3a2 6px 12px)}
+.race .delta{font-size:13px;color:var(--green);text-align:right}
+.race .delta b{font-size:18px}
+
+/* sections */
+section{padding:54px 0 10px}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(28px,4.5vw,44px);margin-bottom:8px}
+h2 em{font-style:italic;color:var(--amber)}
+.lede{color:var(--mut);max-width:62ch;margin-bottom:26px;font-size:14px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:840px){.cards{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px}
+.card .k{font-size:11px;letter-spacing:.14em;color:var(--cyan);margin-bottom:10px}
+.card h3{font-size:15px;font-weight:600;margin-bottom:8px}
+.card p{color:var(--mut);font-size:13px}
+.card .big{font-family:var(--serif);font-size:44px;color:var(--amber);line-height:1;margin:6px 0 8px}
+
+/* quickstart */
+.qs{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:18px 20px;font-size:13.5px;line-height:2}
+.qs .p{color:var(--green)}.qs .c{color:var(--dim)}
+
+/* quote */
+.quote{border-left:2px solid var(--amber);padding:6px 0 6px 22px;max-width:70ch}
+.quote p{font-family:var(--serif);font-size:clamp(19px,2.6vw,26px);line-height:1.4;font-style:italic}
+.quote .who{margin-top:12px;font-size:12px;color:var(--mut);letter-spacing:.1em}
+
+footer{margin-top:70px;padding:26px 0 60px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--mut);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+footer a{color:var(--cyan);text-decoration:none}
+footer a:hover{text-decoration:underline}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .6s,transform .6s}
+.reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <span class="id">INFEROA / FLIGHT RECORDER</span>
+    <span><a href="https://inferoa.agentic-in.ai/blog/announcing-inferoa/" target="_blank" rel="noopener">announcement</a> · built on the vLLM stack</span>
+  </div>
+
+  <div class="hero">
+    <h1>Your agent harness is<br/><em>burning tokens.</em><br/>Watch it happen.</h1>
+    <p class="sub"><b>Inferoa</b> is an inference-native agent harness for long-horizon coding work.
+    It treats the mechanics and cost of inference — prefix caches, context shape, model routing —
+    as the design constraint, not an afterthought. Below: a turn-by-turn simulation of the same
+    coding task run through a naive harness vs. Inferoa.</p>
+    <div class="runline">
+      <button class="primary" id="runBtn">▶ RUN AGENT TASK</button>
+      <button id="speedBtn">SPEED 1×</button>
+      <button id="resetBtn">RESET</button>
+      <span class="keyhint">task: “fix the failing auth test” · 8 turns</span>
+    </div>
+    <div class="honest">
+      <b>What this is:</b> a client-side simulation, not a live model. Token counts and rates are
+      parameterized from the results reported in the Inferoa announcement (90.0% cached-token
+      discount, 80.8% context reduction via CodeGraph, 61.4% tool-output reduction via RTK).
+      No GPUs were harmed rendering this page.
+    </div>
+  </div>
+
+  <!-- meters -->
+  <div class="meters">
+    <div class="meter"><div class="v amber" id="mTok">0</div><div class="l">TOKENS PROCESSED</div></div>
+    <div class="meter"><div class="v cyan" id="mCache">—</div><div class="l">PREFIX CACHE HIT RATE</div></div>
+    <div class="meter"><div class="v green" id="mSaved">$0.0000</div><div class="l">SPEND AVOIDED VS NAIVE</div></div>
+    <div class="meter"><div class="v" id="mTurn" style="color:var(--ink)">0 / 8</div><div class="l">AGENT TURNS</div></div>
+  </div>
+
+  <!-- console -->
+  <div class="console">
+    <div class="panel">
+      <div class="head"><span>AGENT STREAM</span><span id="streamStatus">IDLE</span></div>
+      <div class="stream" id="stream"><div class="ln t-dim">// press RUN to start the agent loop…</div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="panel">
+        <div class="head"><span>CONTEXT WINDOW</span><span class="cachepct" id="ctxPct"></span></div>
+        <div class="ctx-body">
+          <div class="ctx-label"><span id="ctxTok">0 tokens</span><span>128k window</span></div>
+          <div class="ctx-bar" id="ctxBar">
+            <div class="seg cached" id="segCached" style="width:0%"></div>
+            <div class="seg fresh" id="segFresh" style="width:0%"></div>
+            <div class="seg out" id="segOut" style="width:0%"></div>
+          </div>
+          <div class="ctx-legend">
+            <span><span class="sw c1"></span>cached prefix (≈10% price)</span>
+            <span><span class="sw c2"></span>fresh input</span>
+            <span><span class="sw c3"></span>output</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1">
+        <div class="head"><span>SEMANTIC ROUTER</span><span id="routeCount"></span></div>
+        <div class="router" id="router"><div class="ln t-dim" style="font-size:12px">// routing decisions appear here</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- cost race -->
+  <div class="panel">
+    <div class="head"><span>CUMULATIVE SPEND — SAME TASK, TWO HARNESSES</span><span id="raceStatus"></span></div>
+    <div class="race">
+      <div class="row">
+        <div class="rl"><span class="who">naive harness — full resend, raw tool dumps, frontier-only</span><span class="amt" style="color:var(--red)" id="costNaive">$0.0000</span></div>
+        <div class="track"><div class="fill naive" id="barNaive" style="width:0%"></div></div>
+      </div>
+      <div class="row">
+        <div class="rl"><span class="who">inferoa — prefix cache + codegraph + rtk + routing</span><span class="amt" style="color:var(--cyan)" id="costInferoa">$0.0000</span></div>
+        <div class="track"><div class="fill inferoa" id="barInferoa" style="width:0%"></div></div>
+      </div>
+      <div class="delta" id="delta"></div>
+    </div>
+  </div>
+
+  <!-- how -->
+  <section class="reveal">
+    <h2>Three levers, <em>multiplied.</em></h2>
+    <p class="lede">Each mechanism compounds with the others. The discount isn't one trick — it's the product of treating inference as a first-class engineering surface.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="k">PREFIX CACHE DISCIPLINE</div>
+        <div class="big">90.0%</div>
+        <h3>cached-token discount</h3>
+        <p>The harness keeps prompt prefixes byte-stable across turns — system prompt, tool schemas, repo context — so vLLM's prefix cache (and frontier cache pricing) bills repeated context at the cached rate instead of full price.</p>
+      </div>
+      <div class="card">
+        <div class="k">CODEGRAPH</div>
+        <div class="big">80.8%</div>
+        <h3>context reduction</h3>
+        <p>Instead of pasting whole files, the agent carries a graph-shaped slice of the repository — symbols, edges, and the spans that matter for the task. Same signal, a fifth of the tokens.</p>
+      </div>
+      <div class="card">
+        <div class="k">RTK</div>
+        <div class="big">61.4%</div>
+        <h3>tool-output reduction</h3>
+        <p>Raw tool output is the silent token killer. RTK records compact, structured command results — exit codes, deltas, the failing assertion — not 400 lines of test runner noise.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- routing -->
+  <section class="reveal">
+    <h2>Route by <em>economics,</em> not habit.</h2>
+    <p class="lede">The vLLM Semantic Router sends each step where it belongs: mechanical edits and log digestion to self-hosted models at marginal cost; architectural reasoning to frontier models when capability actually pays for itself. Cost, privacy, and capability are routing inputs — not vibes.</p>
+    <div class="quote">
+      <p>“Great to see Inferoa, a community agent harness built on the vLLM stack — it designs the agent loop around the mechanics and cost of inference, with prefix-cache discipline, context optimization, and routing across self-hosted and frontier models.”</p>
+      <div class="who">— vLLM</div>
+    </div>
+  </section>
+
+  <!-- quickstart -->
+  <section class="reveal">
+    <h2>Try it <em>for real.</em></h2>
+    <p class="lede">The simulation above is illustrative. The harness is real:</p>
+    <div class="qs">
+      <div><span class="c"># install</span></div>
+      <div><span class="p">$</span> npm install -g inferoa</div>
+      <div><span class="c"># configure engine, router, cache</span></div>
+      <div><span class="p">$</span> inferoa setup</div>
+      <div><span class="c"># run on a long-horizon task</span></div>
+      <div><span class="p">$</span> inferoa</div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Unofficial demo of the <a href="https://inferoa.agentic-in.ai/blog/announcing-inferoa/" target="_blank" rel="noopener">Inferoa announcement</a>. Simulation parameters from published results.</span>
+    <span>stack: vLLM Engine · Semantic Router · Omni · CodeGraph · RTK</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+"use strict";
+/* ----------------------------------------------------------------------
+   Simulation of an 8-turn agent loop: "fix the failing auth test".
+   Pricing model (illustrative, $/Mtok): frontier in 3.00 / cached 0.30 /
+   out 15.00 ; self-hosted in 0.10 / out 0.30 (marginal serving cost).
+   Naive harness: frontier-only, no cache reuse, raw tool output (RTK
+   savings absent => tool tokens / (1-.614)), file-paste context
+   (CodeGraph absent => repo context / (1-.808)).
+---------------------------------------------------------------------- */
+const P = {
+  fIn: 3.00/1e6, fCached: 0.30/1e6, fOut: 15.00/1e6,
+  lIn: 0.10/1e6, lOut: 0.30/1e6,
+  WINDOW: 128000,
+};
+const RTK = 1/(1-0.614);     // naive tool output multiplier ≈ 2.59x
+const CG  = 1/(1-0.808);     // naive repo-context multiplier ≈ 5.21x
+
+/* per-turn script: route, fresh input {sys-once, repo, tool}, output  */
+const TURNS = [
+  {route:"frontier", why:"task decomposition — needs strong planning", repo:5200, tool:0,    out:420,
+   log:[["t-role","PLAN"],["","read failing test → locate auth middleware → reproduce → patch → verify"],
+        ["t-dim","codegraph: pulled 14 symbols / 3 files as graph slice (5.2k tok, was 27.1k raw)"]]},
+  {route:"local", why:"file read + symbol lookup — mechanical", repo:900, tool:650, out:180,
+   log:[["t-tool","$ rtk test --filter auth"],
+        ["t-red","FAIL test_token_refresh — assert exp > now() ; got skew -3600"],
+        ["t-dim","rtk: 650 tok structured record (raw runner output: 1.7k)"]]},
+  {route:"local", why:"log digestion — local model at marginal cost", repo:0, tool:780, out:240,
+   log:[["t-tool","$ rtk grep 'utcnow' src/auth/"],
+        ["","3 hits → token.py:88 uses naive utcnow(); middleware compares tz-aware"],
+        ["t-dim","prefix cache: 100% of prior context reused @ cached rate"]]},
+  {route:"frontier", why:"root-cause judgment — capability pays here", repo:1100, tool:0, out:520,
+   log:[["t-role","DIAGNOSIS"],
+        ["","tz-naive vs tz-aware comparison; clock skew = local UTC offset. Fix: timezone.utc everywhere + freeze_time in test"]]},
+  {route:"local", why:"apply mechanical patch — no judgment needed", repo:0, tool:430, out:610,
+   log:[["t-tool","$ apply_patch src/auth/token.py"],
+        ["t-ok","+ datetime.now(timezone.utc)  − datetime.utcnow()  (2 sites)"]]},
+  {route:"local", why:"run tests — digest results locally", repo:0, tool:560, out:150,
+   log:[["t-tool","$ rtk test --filter auth"],
+        ["t-ok","PASS 12/12 — 3.2s"],
+        ["t-dim","rtk: full suite output collapsed to verdict + timing"]]},
+  {route:"local", why:"lint + typecheck — mechanical verification", repo:0, tool:380, out:90,
+   log:[["t-tool","$ rtk check"],["t-ok","ruff ✓ mypy ✓"]]},
+  {route:"frontier", why:"PR description — user-facing writing", repo:0, tool:0, out:640,
+   log:[["t-role","SUMMARY"],
+        ["","fix(auth): use tz-aware datetimes in token expiry — closes #214"],
+        ["t-ok","task complete · 8 turns"]]},
+];
+const SYS = 2400; // system prompt + tool schemas, sent once, cached thereafter
+
+/* ---------- state ---------- */
+let running=false, speed=1, ti=0, timer=null;
+let ctxCached=0, ctxFresh=0, ctxOut=0;
+let totTok=0, cachedTok=0, freshTok=0;
+let costN=0, costI=0;
+
+const $=id=>document.getElementById(id);
+const fmt=n=>n.toLocaleString();
+const usd=n=>"$"+n.toFixed(4);
+
+function reset(){
+  clearTimeout(timer); running=false; ti=0;
+  ctxCached=ctxFresh=ctxOut=0; totTok=cachedTok=freshTok=0; costN=costI=0;
+  $("stream").innerHTML='<div class="ln t-dim">// press RUN to start the agent loop…</div>';
+  $("router").innerHTML='<div class="ln t-dim" style="font-size:12px">// routing decisions appear here</div>';
+  $("runBtn").disabled=false; $("runBtn").textContent="▶ RUN AGENT TASK";
+  $("streamStatus").textContent="IDLE"; $("streamStatus").className="";
+  $("raceStatus").textContent=""; $("delta").innerHTML="";
+  paint();
+}
+function paint(){
+  const ctx=ctxCached+ctxFresh+ctxOut;
+  $("segCached").style.width=(ctxCached/P.WINDOW*100)+"%";
+  $("segFresh").style.width=(ctxFresh/P.WINDOW*100)+"%";
+  $("segOut").style.width=(ctxOut/P.WINDOW*100)+"%";
+  $("ctxTok").textContent=fmt(ctx)+" tokens";
+  $("ctxPct").textContent=ctx?Math.round(ctxCached/ctx*100)+"% cached":"";
+  $("mTok").textContent=fmt(totTok);
+  $("mCache").textContent=(cachedTok+freshTok)?(cachedTok/(cachedTok+freshTok)*100).toFixed(1)+"%":"—";
+  $("mSaved").textContent=usd(Math.max(0,costN-costI));
+  $("mTurn").textContent=ti+" / "+TURNS.length;
+  $("costNaive").textContent=usd(costN);
+  $("costInferoa").textContent=usd(costI);
+  const mx=Math.max(costN,0.0001);
+  $("barNaive").style.width=Math.min(100,costN/ (mx*1.05) *100)+"%";
+  $("barInferoa").style.width=Math.min(100,costI/(mx*1.05)*100)+"%";
+  $("routeCount").textContent=ti?ti+" decisions":"";
+}
+function addLine(parts,cls){
+  const d=document.createElement("div"); d.className="ln "+(cls||"");
+  parts.forEach(([k,txt])=>{const s=document.createElement("span"); if(k)s.className=k; s.textContent=txt; d.appendChild(s);});
+  $("stream").appendChild(d); $("stream").scrollTop=1e9; return d;
+}
+/* typewriter for one line */
+function typeLine(parts,done){
+  const d=document.createElement("div"); d.className="ln cursor"; $("stream").appendChild(d);
+  let pi=0,ci=0,cur=null;
+  function step(){
+    if(pi>=parts.length){d.classList.remove("cursor");return done();}
+    const [k,txt]=parts[pi];
+    if(!cur){cur=document.createElement("span"); if(k)cur.className=k; d.appendChild(cur);}
+    const take=Math.max(1,Math.round(2*speed));
+    cur.textContent=txt.slice(0,ci+=take);
+    $("stream").scrollTop=1e9;
+    if(ci>=txt.length){pi++;ci=0;cur=null;}
+    timer=setTimeout(step,16);
+  }
+  step();
+}
+function addRoute(t){
+  const r=document.createElement("div"); r.className="route";
+  const local=t.route==="local";
+  r.innerHTML='<span class="badge '+(local?"local":"frontier")+'">'+(local?"⇢ SELF-HOSTED vLLM":"⇡ FRONTIER")+'</span>'+
+    '<span class="why">'+t.why+'</span><span class="tok">'+fmt(t.out)+' out</span>';
+  const box=$("router");
+  if(box.firstChild && box.firstChild.classList && box.firstChild.classList.contains("ln")) box.innerHTML="";
+  box.appendChild(r);
+  while(box.children.length>5) box.removeChild(box.firstChild);
+}
+function runTurn(){
+  if(ti>=TURNS.length){
+    running=false;
+    $("runBtn").disabled=false; $("runBtn").textContent="↻ RUN AGAIN";
+    $("streamStatus").textContent="COMPLETE"; $("streamStatus").className="live";
+    $("raceStatus").textContent="FINAL";
+    const x=costN/costI;
+    $("delta").innerHTML='same task, <b>'+x.toFixed(1)+'×</b> cheaper — '+usd(costN-costI)+' avoided';
+    addLine([["t-ok","// task complete — "],["t-mut",fmt(totTok)+" tokens, "],
+             ["t-ok",usd(costI)],["t-mut"," vs naive "],["t-red",usd(costN)]]);
+    paint(); return;
+  }
+  const t=TURNS[ti];
+  const sys=ti===0?SYS:0;
+  const freshIn=sys+t.repo+t.tool;          // new tokens this turn
+  const cachedIn=ctxCached+ctxFresh+ctxOut; // full prior context, cache-hit
+  /* inferoa cost */
+  const local=t.route==="local";
+  const inRate = local?P.lIn:P.fIn, outRate= local?P.lOut:P.fOut;
+  const cachedRate = local?P.lIn*0.1:P.fCached;
+  costI += cachedIn*cachedRate + freshIn*inRate + t.out*outRate;
+  /* naive: frontier only, zero cache, bloated context */
+  const nSys=SYS, nRepo=t.repo*CG, nTool=t.tool*RTK, nOut=t.out;
+  const nPrior = naivePrior; // resend everything at full price
+  const nFresh = nSys + nRepo + nTool;
+  costN += (nPrior+nFresh)*P.fIn + nOut*P.fOut;
+  naivePrior += nFresh + nOut;
+  /* state */
+  cachedTok+=cachedIn; freshTok+=freshIn;
+  totTok += cachedIn+freshIn+t.out;
+  ctxCached += ctxFresh+ctxOut; ctxFresh=freshIn; ctxOut=t.out;
+  ti++;
+  addRoute(t);
+  addLine([["t-turn","── turn "+ti+" "],["t-dim","· "+(local?"self-hosted":"frontier")+" · "+fmt(cachedIn)+" cached + "+fmt(freshIn)+" fresh in"]]);
+  let li=0;
+  (function next(){
+    if(li<t.log.length){ const [k,txt]=t.log[li++]; typeLine([[k||"t-mut",txt]],()=>{timer=setTimeout(next,90/speed);}); }
+    else { paint(); timer=setTimeout(runTurn,420/speed); }
+  })();
+  paint();
+}
+let naivePrior=0;
+$("runBtn").onclick=()=>{
+  if(running)return;
+  reset(); running=true; naivePrior=0;
+  $("runBtn").disabled=true; $("runBtn").textContent="RUNNING…";
+  $("streamStatus").textContent="● LIVE"; $("streamStatus").className="live blink";
+  runTurn();
+};
+$("speedBtn").onclick=()=>{ speed=speed===1?2:speed===2?4:1; $("speedBtn").textContent="SPEED "+speed+"×"; };
+$("resetBtn").onclick=reset;
+/* scroll reveals */
+const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.target.classList.add("in")),{threshold:.12});
+document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
+paint();
+})();
+</script>
+</body>
+</html>
