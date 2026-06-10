@@ -251,10 +251,11 @@ footer a:hover{text-decoration:underline}
         <div class="big">PR #1</div>
         <h3>failing test → fix → green, autonomously</h3>
         <p>An agent in an isolated sandbox was handed a repo with a genuinely failing test
-        (tz-naive vs tz-aware datetime). It diagnosed, patched 2 lines, re-ran pytest, and opened
+        (tz-naive vs tz-aware datetime) and a task prompt that named the suspected cause. It produced
+        the 2-line fix, re-ran pytest to green, and opened
         <a href="https://github.com/zozo123/inferoa-receipts/pull/1" target="_blank" rel="noopener"
         style="color:var(--amber)">a PR containing the verbatim before/after test output</a>.
-        The PR is the audit trail.</p>
+        What's proven: the sandboxed execute-verify-publish workflow — not unguided agent diagnosis.</p>
       </div>
       <div class="card">
         <div class="k">REAL WIRING · TWO SANDBOXES</div>

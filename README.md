@@ -31,7 +31,7 @@ With those parameters the simulated task lands at **~21.6× cheaper** with an **
 
 The simulation is for legibility; these executed for real in isolated [islo.dev](https://islo.dev) sandboxes:
 
-- **Real agent PR:** [inferoa-receipts#1](https://github.com/zozo123/inferoa-receipts/pull/1) — an agent in a sandbox fixed a genuinely failing test (tz-naive vs tz-aware datetimes) and opened a PR containing the verbatim before/after pytest output.
+- **Real agent PR:** [inferoa-receipts#1](https://github.com/zozo123/inferoa-receipts/pull/1) — an agent in a sandbox was handed a genuinely failing test (tz-naive vs tz-aware datetimes; the task prompt named the suspected cause), produced the fix, re-ran pytest to green, and opened a PR containing the verbatim before/after output. It proves the sandboxed execute-verify-publish workflow, not unguided diagnosis.
 - **Real Inferoa → real vLLM:** `inferoa@0.11.0` (npm) in one sandbox drove `vLLM v0.22.1` (Qwen2.5-0.5B, CPU, `enable_prefix_caching=True`) in another, wired through a public `islo share` URL. Inferoa's event log records `provider_id: vllm:openai_compatible:https://….share.islo.dev/v1` with 16,829-token prompts and stable prompt/tool-schema hashes.
 - **Real prefix-cache metrics:** vLLM's Prometheus counters after the run — `prefix_cache_hits_total 1,611,008` / `prefix_cache_queries_total 1,647,574` = **97.8% measured hit rate** (the announcement claims 90%).
 - **Honest limits:** a 0.5B CPU model demonstrates the mechanics, not frontier coding ability.
