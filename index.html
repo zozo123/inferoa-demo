@@ -222,12 +222,59 @@ footer a:hover{text-decoration:underline}
       <span class="keyhint">task: “fix the failing auth test” · 8 turns</span>
     </div>
     <div class="honest">
-      <b>What this is:</b> a client-side simulation, not a live model. Token counts and rates are
-      parameterized from the results reported in the Inferoa announcement (90.0% cached-token
-      discount, 80.8% context reduction via CodeGraph, 61.4% tool-output reduction via RTK).
-      No GPUs were harmed rendering this page.
+      <b>What this is:</b> the page below is a client-side simulation, parameterized from the
+      results reported in the Inferoa announcement (90.0% cached-token discount, 80.8% context
+      reduction via CodeGraph, 61.4% tool-output reduction via RTK). But the mechanics are real —
+      <a href="#receipts" style="color:var(--cyan)">we also ran the real thing and kept the receipts ↓</a>
     </div>
   </div>
+
+  <!-- receipts -->
+  <section id="receipts" style="padding-top:34px">
+    <h2>Receipts — <em>what's real.</em></h2>
+    <p class="lede">A simulation is legible; receipts are credible. We ran the real stack in isolated
+    <a href="https://islo.dev" target="_blank" rel="noopener" style="color:var(--cyan)">islo.dev</a> sandboxes
+    and kept the artifacts. Everything below actually executed.</p>
+    <div class="cards" style="grid-template-columns:repeat(2,1fr)">
+      <div class="card">
+        <div class="k">REAL PREFIX CACHE · vLLM /metrics</div>
+        <div class="big">97.8%</div>
+        <h3>measured cache-hit rate</h3>
+        <p>Real <b style="color:var(--ink)">Inferoa v0.11.0</b> (npm) drove a real
+        <b style="color:var(--ink)">vLLM v0.22.1</b> server (Qwen2.5-0.5B, CPU). vLLM's own Prometheus
+        counters after the run: <code style="color:var(--cyan)">prefix_cache_hits_total 1,611,008</code> of
+        <code style="color:var(--cyan)">queries_total 1,647,574</code>. The harness's byte-stable prompt
+        prefix beat the announcement's 90% claim.</p>
+      </div>
+      <div class="card">
+        <div class="k">REAL AGENT WORK · PUBLIC PR</div>
+        <div class="big">PR #1</div>
+        <h3>failing test → fix → green, autonomously</h3>
+        <p>An agent in an isolated sandbox was handed a repo with a genuinely failing test
+        (tz-naive vs tz-aware datetime). It diagnosed, patched 2 lines, re-ran pytest, and opened
+        <a href="https://github.com/zozo123/inferoa-receipts/pull/1" target="_blank" rel="noopener"
+        style="color:var(--amber)">a PR containing the verbatim before/after test output</a>.
+        The PR is the audit trail.</p>
+      </div>
+      <div class="card">
+        <div class="k">REAL WIRING · TWO SANDBOXES</div>
+        <h3>vLLM in one, Inferoa in the other</h3>
+        <p>Sandbox A serves vLLM on :8000; <code style="color:var(--cyan)">islo share</code> exposed it at a
+        public <code style="color:var(--cyan)">*.share.islo.dev</code> URL; sandbox B's Inferoa pointed its
+        <code style="color:var(--cyan)">base_url</code> there. Inferoa's event log records the proof:
+        <code style="color:var(--cyan)">provider_id: vllm:openai_compatible:https://…share.islo.dev/v1</code>,
+        prompt_tokens: 16,829 per turn, with stable prompt/tool-schema hashes — cache discipline, visible.</p>
+      </div>
+      <div class="card">
+        <div class="k">HONEST LIMITS</div>
+        <h3>what we don't claim</h3>
+        <p>The 0.5B CPU model proves the <i>mechanics</i> (caching, routing, harness loop), not frontier-grade
+        coding — it made a real but adorably confused tool call. Sim pricing is illustrative and published in the
+        <a href="https://github.com/zozo123/inferoa-demo" target="_blank" rel="noopener" style="color:var(--amber)">README</a>.
+        Share URLs expire in 24h; the repos and PR are permanent.</p>
+      </div>
+    </div>
+  </section>
 
   <!-- meters -->
   <div class="meters">
