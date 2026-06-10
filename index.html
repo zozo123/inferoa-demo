@@ -171,6 +171,26 @@ button:disabled{opacity:.4;cursor:default}
 .race .delta{font-size:13px;color:var(--green);text-align:right}
 .race .delta b{font-size:18px}
 
+/* e2e timeline */
+.steps{display:flex;flex-direction:column;gap:0;margin-top:8px}
+.step{display:grid;grid-template-columns:56px 1fr;gap:0 18px;position:relative;padding-bottom:34px}
+.step::before{content:"";position:absolute;left:27px;top:44px;bottom:0;width:1px;background:var(--line2)}
+.step:last-child::before{display:none}
+.step .num{
+  width:44px;height:44px;border:1px solid var(--line2);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:22px;color:var(--amber);background:var(--bg2);
+  position:relative;z-index:1;
+}
+.step h3{font-size:15px;font-weight:600;margin:10px 0 4px}
+.step .note{color:var(--mut);font-size:13px;margin-bottom:12px;max-width:70ch}
+.step .note b{color:var(--cyan);font-weight:500}
+.step .term{margin-bottom:0}
+.step pre{font-size:12px;line-height:1.65}
+.stamp{font-size:10px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;margin-top:8px}
+.diffline-a{color:var(--red)}
+.diffline-b{color:var(--green)}
+
 /* sections */
 section{padding:54px 0 10px}
 h2{font-family:var(--serif);font-weight:400;font-size:clamp(28px,4.5vw,44px);margin-bottom:8px}
@@ -247,14 +267,15 @@ footer a:hover{text-decoration:underline}
         prefix beat the announcement's 90% claim.</p>
       </div>
       <div class="card">
-        <div class="k">REAL AGENT WORK · PUBLIC PR</div>
-        <div class="big">PR #1</div>
-        <h3>failing test → fix → green, autonomously</h3>
+        <div class="k">REAL AGENT WORK · MERGED TO MAIN</div>
+        <div class="big">2 lines</div>
+        <h3>failing test → fix → green, in a sandbox</h3>
         <p>An agent in an isolated sandbox was handed a repo with a genuinely failing test
         (tz-naive vs tz-aware datetime) and a task prompt that named the suspected cause. It produced
-        the 2-line fix, re-ran pytest to green, and opened
-        <a href="https://github.com/zozo123/inferoa-receipts/pull/1" target="_blank" rel="noopener"
-        style="color:var(--amber)">a PR containing the verbatim before/after test output</a>.
+        the 2-line fix, re-ran pytest to green, and the change is
+        <a href="https://github.com/zozo123/inferoa-receipts/commit/ffda3d7" target="_blank" rel="noopener"
+        style="color:var(--amber)">merged on main</a>. Verbatim before/after output is embedded in
+        <a href="#e2e" style="color:var(--amber)">step 7 below</a>.
         What's proven: the sandboxed execute-verify-publish workflow — not unguided agent diagnosis.</p>
       </div>
       <div class="card">
@@ -330,6 +351,140 @@ footer a:hover{text-decoration:underline}
       <div class="delta" id="delta"></div>
     </div>
   </div>
+
+  <!-- e2e -->
+  <section class="reveal" id="e2e">
+    <h2>The real run, <em>end to end.</em></h2>
+    <p class="lede">Every block below is captured output from the actual run on 2026-06-10 — two isolated
+    <a href="https://islo.dev" target="_blank" rel="noopener" style="color:var(--cyan)">islo.dev</a> sandboxes,
+    real vLLM, real Inferoa, real metrics. Nothing here is mocked.</p>
+    <div class="steps">
+
+      <div class="step">
+        <div class="num">1</div>
+        <div>
+          <h3>Spin up a vLLM sandbox</h3>
+          <p class="note">One CLI command turns the official vLLM CPU image into a running sandbox. Note the engine config: <b>enable_prefix_caching=True</b>.</p>
+          <div class="term"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c1">$</span> <span class="c4">islo use vllm-cpu-1781079422 -i docker.io/vllm/vllm-openai-cpu:latest-x86_64 \
+    --cpu 6 --memory 12288 --disk 30</span>
+<span class="c2">✓</span> Sandbox 'vllm-cpu-1781079422' created
+<span class="c1">$</span> <span class="c4">vllm serve Qwen/Qwen2.5-0.5B-Instruct --dtype bfloat16 --max-model-len 32768</span>
+<span class="c3">(EngineCore) INFO core.py:112 Initializing a V1 LLM engine (v0.22.1) with config:
+  model='Qwen/Qwen2.5-0.5B-Instruct', device_config=cpu, <span class="c2">enable_prefix_caching=True</span> …
+(Worker) INFO Time spent downloading weights: 10.27 s
+(Worker) INFO Loading weights took 0.27 seconds</span></pre></div>
+          <div class="stamp">real output · sandbox A</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">2</div>
+        <div>
+          <h3>Expose it to the world</h3>
+          <p class="note">One more command gives the sandbox port a public HTTPS URL on the islo.dev domain.</p>
+          <div class="term"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c1">$</span> <span class="c4">islo share vllm-cpu-1781079422 8000 --ttl 24h</span>
+<span class="c2">✓</span> Share created for vllm-cpu-1781079422:8000
+  URL: <span class="c2">https://itc807adoyzwz6hzj0rkmcp7m.ca.share.islo.dev</span>
+  Expires: in 1d 0h</pre></div>
+          <div class="stamp">real output · share url (24h ttl — may be expired by the time you read this)</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">3</div>
+        <div>
+          <h3>Prove the inference is real</h3>
+          <p class="note">A completion through the public URL. Asked to echo <b>“INFERENCE OK”</b>, the 0.5B model replied <b>“INFORMATION OK”</b> — a mock would have echoed exactly. The typo is the proof.</p>
+          <div class="term"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c1">$</span> <span class="c4">curl https://itc807….ca.share.islo.dev/v1/chat/completions -d '{
+    "model":"Qwen/Qwen2.5-0.5B-Instruct",
+    "messages":[{"role":"user","content":"Reply with exactly: INFERENCE OK"}]}'</span>
+reply: <span class="c2">INFORMATION OK</span>
+usage: {'prompt_tokens': 36, 'total_tokens': 40, 'completion_tokens': 4}</pre></div>
+          <div class="stamp">real output · external request from a laptop, through islo.dev, into sandbox A</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">4</div>
+        <div>
+          <h3>Point real Inferoa at it</h3>
+          <p class="note">Second sandbox: install the actual npm package and aim its engine config at the share URL. Inferoa's default provider is literally vLLM.</p>
+          <div class="term"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c1">$</span> <span class="c4">npm install -g inferoa</span>   <span class="c3"># inferoa@0.11.0</span>
+<span class="c1">$</span> <span class="c4">cat ~/.inferoa/config.yaml</span>
+<span class="c3">model_setup:
+  mode: direct
+  provider: <span class="c2">vllm</span>
+  model: Qwen/Qwen2.5-0.5B-Instruct
+  base_url: <span class="c2">https://itc807….ca.share.islo.dev/v1</span></span>
+<span class="c1">$</span> <span class="c4">inferoa debug status --json | jq .endpoint_signals.errors</span>
+<span class="c2">[]</span></pre></div>
+          <div class="stamp">real output · sandbox B</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">5</div>
+        <div>
+          <h3>Run the harness for real</h3>
+          <p class="note">Inferoa's own event log records each model call: the islo.dev provider URL, a <b>16,829-token prompt</b>, and stable prompt/tool-schema hashes — the cache-discipline machinery, visible. The tiny model then made a real but confused tool call (it tried to <i>invoke</i> <code>is_palindrome</code> instead of writing it). Honest limit: 0.5B proves mechanics, not coding skill.</p>
+          <div class="term"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c1">$</span> <span class="c4">inferoa --print "Write a Python function is_palindrome(s)…"</span>
+<span class="c1">$</span> <span class="c4">inferoa debug events s_6b9da06c… </span>
+<span class="c3">type: model.request.started
+  provider_id: <span class="c2">vllm:openai_compatible:https://itc807….ca.share.islo.dev/v1</span>
+  prompt_hash: 990301121c…  tool_schema_hash: a381b770ce…
+type: model.response.settled
+  usage: { prompt_tokens: <span class="c2">16829</span>, completion_tokens: 30 }
+  tool_calls: [ { name: is_palindrome,
+    arguments: { s: <span class="t-ok">"A man, a plan, a canal, Panama"</span> } } ]</span></pre></div>
+          <div class="stamp">real output · inferoa event log, session s_6b9da06c…</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">6</div>
+        <div>
+          <h3>Read the cache off vLLM itself</h3>
+          <p class="note">Not our numbers — vLLM's Prometheus counters after the session. <b>1,611,008 of 1,647,574 prompt tokens hit the prefix cache: 97.8%</b>, above the announcement's 90% claim. Byte-stable prefixes are why.</p>
+          <div class="term"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c1">$</span> <span class="c4">curl localhost:8000/metrics | grep prefix_cache</span>
+vllm:prefix_cache_queries_total{model="Qwen/Qwen2.5-0.5B-Instruct"} <span class="c2">1,647,574</span>
+vllm:prefix_cache_hits_total{model="Qwen/Qwen2.5-0.5B-Instruct"}    <span class="c2">1,611,008</span>
+<span class="c3"># hit rate = </span><span class="t-ok">97.8%</span></pre></div>
+          <div class="stamp">real output · sandbox A, vllm /metrics</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">7</div>
+        <div>
+          <h3>And the agent loop, with receipts</h3>
+          <p class="note">Separately, an agent in a third sandbox was handed a repo with a genuinely failing test and the suspected cause. It produced the fix, re-ran pytest to green, and the change is
+          <a href="https://github.com/zozo123/inferoa-receipts/commit/ffda3d7" target="_blank" rel="noopener" style="color:var(--amber)">merged on main (ffda3d7)</a>. Before / fix / after:</p>
+          <div class="term"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c1">$</span> <span class="c4">python3 -m pytest -v</span>
+<span class="t-red">FAILED tests/test_token_refresh.py::test_token_refresh
+E  TypeError: can't compare offset-naive and offset-aware datetimes</span>
+
+<span class="c3">--- a/auth_service/token.py
++++ b/auth_service/token.py</span>
+<span class="diffline-a">-    now = datetime.utcnow()</span>
+<span class="diffline-b">+    now = datetime.now(timezone.utc)</span>
+
+<span class="c1">$</span> <span class="c4">python3 -m pytest -v</span>
+<span class="t-ok">tests/test_token_refresh.py::test_token_refresh PASSED
+tests/test_token_refresh.py::test_expired_token_rejected PASSED
+============== 2 passed ==============</span></pre></div>
+          <div class="stamp">real output · sandbox C · merged to zozo123/inferoa-receipts@main</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
 
   <!-- how -->
   <section class="reveal">
