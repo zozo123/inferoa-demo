@@ -355,9 +355,42 @@ footer a:hover{text-decoration:underline}
   <!-- e2e -->
   <section class="reveal" id="e2e">
     <h2>The real run, <em>end to end.</em></h2>
-    <p class="lede">Every block below is captured output from the actual run on 2026-06-10 — two isolated
+    <p class="lede">Every block below is captured output from the actual run on 2026-06-10 — three isolated
     <a href="https://islo.dev" target="_blank" rel="noopener" style="color:var(--cyan)">islo.dev</a> sandboxes,
-    real vLLM, real Inferoa, real metrics. Nothing here is mocked.</p>
+    real vLLM, real Inferoa, real metrics. Nothing here is mocked. First, the map:</p>
+
+    <div class="term" style="margin-bottom:18px"><div class="bar"><i></i><i></i><i></i></div>
+<pre style="font-size:12.5px;line-height:1.5">
+ <span class="c3">LAPTOP</span>                        <span class="c2">ISLO.DEV — isolated sandboxes</span>                <span class="c3">PUBLIC INTERNET</span>
+ ──────                        ─────────────────────────────────            ───────────────
+
+ <span class="c4">islo</span> CLI ──<span class="c3">creates</span>──▶   ┌─ <span class="c2">SANDBOX A</span> ──────────────────────┐
+                         │ <span class="c4">vLLM v0.22.1</span> · CPU · Qwen2.5-0.5B │
+                         │ prefix_caching=<span class="t-ok">ON</span>          <span class="c3">:8000</span> ─┼──▶ <span class="c2">https://…share.islo.dev</span>
+                         └────────────────────▲──────────────┘    <span class="c3">(islo share, public HTTPS)</span>
+                                              │
+                              <span class="t-ok">real inference requests</span>
+                                              │
+                         ┌─ <span class="c2">SANDBOX B</span> ───────┴──────────────┐
+                         │ <span class="c4">inferoa@0.11.0</span> (npm, the actual  │
+                         │ harness) · base_url → share URL   │
+                         └───────────────────────────────────┘
+
+                         ┌─ <span class="c2">SANDBOX C</span> ──────────────────────┐
+                         │ <span class="c4">coding agent</span> · pytest <span class="t-red">red</span> → <span class="t-ok">green</span> ─┼──▶ <span class="c2">github.com</span> · fix merged
+                         └───────────────────────────────────┘    <span class="c3">to main (ffda3d7)</span>
+
+ <span class="c3">WHAT HAPPENED:</span> the harness in B drove the model in A through a public islo.dev URL;
+ vLLM's own counters measured the cache. The agent in C turned a failing repo green.
+</pre></div>
+
+    <div class="meters" style="margin-bottom:24px">
+      <div class="meter"><div class="v cyan">97.8%</div><div class="l">REAL CACHE-HIT RATE (vLLM /metrics)</div></div>
+      <div class="meter"><div class="v amber">1.65M</div><div class="l">PROMPT TOKENS THROUGH vLLM</div></div>
+      <div class="meter"><div class="v" style="color:var(--ink)">138</div><div class="l">SUCCESSFUL MODEL REQUESTS</div></div>
+      <div class="meter"><div class="v green">0 → 2</div><div class="l">TESTS PASSING AFTER AGENT FIX</div></div>
+    </div>
+
     <div class="steps">
 
       <div class="step">
