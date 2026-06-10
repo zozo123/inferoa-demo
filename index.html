@@ -288,8 +288,9 @@ footer a:hover{text-decoration:underline}
         <p>Real <b style="color:var(--ink)">Inferoa v0.11.0</b> (npm) drove a real
         <b style="color:var(--ink)">vLLM v0.22.1</b> server (Qwen2.5-0.5B, CPU). vLLM's own Prometheus
         counters after the run: <code style="color:var(--cyan)">prefix_cache_hits_total 1,611,008</code> of
-        <code style="color:var(--cyan)">queries_total 1,647,574</code>. The harness's byte-stable prompt
-        prefix beat the announcement's 90% claim.</p>
+        <code style="color:var(--cyan)">queries_total 1,647,574</code>. Note: the announcement's 90.0% is a
+        cached-token <i>discount</i> (pricing); ours is the measured <i>hit rate</i> — related but distinct
+        metrics, both driven by the same byte-stable prefixes.</p>
       </div>
       <div class="card">
         <div class="k">REAL AGENT WORK · MERGED TO MAIN</div>
@@ -395,7 +396,7 @@ footer a:hover{text-decoration:underline}
           <div class="flow"></div>
           <div class="node"><div class="nk">SANDBOX A</div><b>vLLM v0.22.1 · Qwen2.5-0.5B · CPU</b><span>prefix_caching = ON</span></div>
           <div class="flow"><span class="flabel">read off vLLM's own /metrics</span></div>
-          <div class="node result"><div class="nk">RESULT</div><b>97.8% cache-hit rate</b><span>1,611,008 / 1,647,574 prompt tokens — claim was 90%</span></div>
+          <div class="node result"><div class="nk">RESULT</div><b>97.8% cache-hit rate</b><span>1,611,008 / 1,647,574 prompt tokens served from prefix cache</span></div>
         </div>
         <div class="lane">
           <div class="lanetitle">Pipeline 2 · prove the agent workflow</div>
@@ -508,7 +509,7 @@ type: model.response.settled
         <div class="num">6</div>
         <div>
           <h3>Read the cache off vLLM itself</h3>
-          <p class="note">Not our numbers — vLLM's Prometheus counters after the session. <b>1,611,008 of 1,647,574 prompt tokens hit the prefix cache: 97.8%</b>, above the announcement's 90% claim. Byte-stable prefixes are why.</p>
+          <p class="note">Not our numbers — vLLM's Prometheus counters after the session. <b>1,611,008 of 1,647,574 prompt tokens hit the prefix cache: a 97.8% hit rate.</b> (The announcement's 90.0% is a cached-token <i>discount</i> — a pricing metric; this is the <i>hit rate</i>. Same mechanism: byte-stable prefixes.)</p>
           <div class="term"><div class="bar"><i></i><i></i><i></i></div>
 <pre><span class="c1">$</span> <span class="c4">curl localhost:8000/metrics | grep prefix_cache</span>
 vllm:prefix_cache_queries_total{model="Qwen/Qwen2.5-0.5B-Instruct"} <span class="c2">1,647,574</span>
