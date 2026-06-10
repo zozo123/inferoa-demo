@@ -171,6 +171,31 @@ button:disabled{opacity:.4;cursor:default}
 .race .delta{font-size:13px;color:var(--green);text-align:right}
 .race .delta b{font-size:18px}
 
+/* e2e flow map */
+.mapwrap{border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:18px;margin-bottom:18px}
+.mapcli{font-size:12.5px;color:var(--mut);border:1px dashed var(--line2);border-radius:4px;padding:9px 12px;margin-bottom:16px;text-align:center}
+.mapcli b{color:var(--ink)}.mapcli code{color:var(--amber);font-family:var(--mono)}
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:840px){.lanes{grid-template-columns:1fr}}
+.lane{border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:14px;display:flex;flex-direction:column}
+.lanetitle{font-size:10px;letter-spacing:.14em;color:var(--mut);text-align:center;margin-bottom:12px;text-transform:uppercase}
+.node{border:1px solid var(--line2);border-radius:5px;padding:10px 12px;text-align:center;background:var(--panel)}
+.node .nk{font-size:9.5px;letter-spacing:.12em;color:var(--cyan);margin-bottom:3px}
+.node b{font-size:13.5px;color:var(--ink);font-weight:600;display:block}
+.node span{font-size:11.5px;color:var(--mut);display:block;margin-top:2px}
+.node.urlnode .nk{color:var(--amber)}
+.node.urlnode b{color:var(--amber)}
+.node.result{border-color:#2f5d3a;box-shadow:0 0 18px rgba(158,206,106,.12)}
+.node.result b{color:var(--green);font-size:16px}
+.flow{position:relative;width:2px;background:var(--line2);height:42px;margin:0 auto;flex-shrink:0}
+.flow::after{content:"";position:absolute;left:-2.5px;top:-7px;width:7px;height:7px;border-radius:50%;
+  background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:drip 1.5s linear infinite}
+@keyframes drip{0%{top:-7px;opacity:0}15%{opacity:1}100%{top:100%;opacity:0}}
+.flow .flabel{position:absolute;left:11px;top:50%;transform:translateY(-50%);white-space:nowrap;
+  font-size:10.5px;color:var(--dim)}
+.mapsum{margin-top:16px;font-size:12px;color:var(--mut);border-top:1px solid var(--line);padding-top:12px;line-height:1.7}
+.mapsum b{color:var(--ink)}
+
 /* e2e timeline */
 .steps{display:flex;flex-direction:column;gap:0;margin-top:8px}
 .step{display:grid;grid-template-columns:56px 1fr;gap:0 18px;position:relative;padding-bottom:34px}
@@ -357,32 +382,33 @@ footer a:hover{text-decoration:underline}
     <h2>The real run, <em>end to end.</em></h2>
     <p class="lede">Every block below is captured output from the actual run on 2026-06-10 — three isolated
     <a href="https://islo.dev" target="_blank" rel="noopener" style="color:var(--cyan)">islo.dev</a> sandboxes,
-    real vLLM, real Inferoa, real metrics. Nothing here is mocked. First, the map:</p>
+    real vLLM, real Inferoa, real metrics. Nothing here is mocked. Two pipelines, two results:</p>
 
-    <div class="term" style="margin-bottom:18px"><div class="bar"><i></i><i></i><i></i></div>
-<pre style="font-size:12.5px;line-height:1.5">
- <span class="c3">LAPTOP</span>                        <span class="c2">ISLO.DEV — isolated sandboxes</span>                <span class="c3">PUBLIC INTERNET</span>
- ──────                        ─────────────────────────────────            ───────────────
-
- <span class="c4">islo</span> CLI ──<span class="c3">creates</span>──▶   ┌─ <span class="c2">SANDBOX A</span> ──────────────────────┐
-                         │ <span class="c4">vLLM v0.22.1</span> · CPU · Qwen2.5-0.5B │
-                         │ prefix_caching=<span class="t-ok">ON</span>          <span class="c3">:8000</span> ─┼──▶ <span class="c2">https://…share.islo.dev</span>
-                         └────────────────────▲──────────────┘    <span class="c3">(islo share, public HTTPS)</span>
-                                              │
-                              <span class="t-ok">real inference requests</span>
-                                              │
-                         ┌─ <span class="c2">SANDBOX B</span> ───────┴──────────────┐
-                         │ <span class="c4">inferoa@0.11.0</span> (npm, the actual  │
-                         │ harness) · base_url → share URL   │
-                         └───────────────────────────────────┘
-
-                         ┌─ <span class="c2">SANDBOX C</span> ──────────────────────┐
-                         │ <span class="c4">coding agent</span> · pytest <span class="t-red">red</span> → <span class="t-ok">green</span> ─┼──▶ <span class="c2">github.com</span> · fix merged
-                         └───────────────────────────────────┘    <span class="c3">to main (ffda3d7)</span>
-
- <span class="c3">WHAT HAPPENED:</span> the harness in B drove the model in A through a public islo.dev URL;
- vLLM's own counters measured the cache. The agent in C turned a failing repo green.
-</pre></div>
+    <div class="mapwrap">
+      <div class="mapcli">⌨ <b>laptop</b> — the <code>islo</code> CLI creates three isolated sandboxes on islo.dev · no GPU, no devops, one command each</div>
+      <div class="lanes">
+        <div class="lane">
+          <div class="lanetitle">Pipeline 1 · measure the inference claim</div>
+          <div class="node"><div class="nk">SANDBOX B</div><b>inferoa@0.11.0</b><span>the actual harness, installed from npm</span></div>
+          <div class="flow"><span class="flabel">real inference requests · HTTPS</span></div>
+          <div class="node urlnode"><div class="nk">PUBLIC URL · islo share</div><b>https://…share.islo.dev</b><span>sandbox port 8000, exposed in one command</span></div>
+          <div class="flow"></div>
+          <div class="node"><div class="nk">SANDBOX A</div><b>vLLM v0.22.1 · Qwen2.5-0.5B · CPU</b><span>prefix_caching = ON</span></div>
+          <div class="flow"><span class="flabel">read off vLLM's own /metrics</span></div>
+          <div class="node result"><div class="nk">RESULT</div><b>97.8% cache-hit rate</b><span>1,611,008 / 1,647,574 prompt tokens — claim was 90%</span></div>
+        </div>
+        <div class="lane">
+          <div class="lanetitle">Pipeline 2 · prove the agent workflow</div>
+          <div class="node"><div class="nk">SANDBOX C</div><b>coding agent + failing repo</b><span>TypeError: naive vs aware datetime comparison</span></div>
+          <div class="flow"><span class="flabel">pytest red → 2-line fix → pytest green</span></div>
+          <div class="node"><div class="nk">GITHUB · MAIN</div><b>fix merged (ffda3d7)</b><span>verbatim before/after output in step 7 below</span></div>
+          <div class="flow"></div>
+          <div class="node result"><div class="nk">RESULT</div><b>0 → 2 tests passing</b><span>execute → verify → publish, fully isolated</span></div>
+        </div>
+      </div>
+      <div class="mapsum"><b>What happened:</b> the harness in B drove the model in A through a public islo.dev URL, and vLLM's own
+      counters measured the cache. The agent in C turned a failing repo green. Every box maps to a numbered step below with its captured output.</div>
+    </div>
 
     <div class="meters" style="margin-bottom:24px">
       <div class="meter"><div class="v cyan">97.8%</div><div class="l">REAL CACHE-HIT RATE (vLLM /metrics)</div></div>
