@@ -3,8 +3,40 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Inferoa — watch an agent loop spend tokens</title>
+<title>Inferoa flight recorder (unofficial demo) — Yossi Eliaz</title>
 <meta name="description" content="Interactive simulation of inference-native agent mechanics: prefix caching, context compression, and model routing. Built on the vLLM stack." />
+<meta name="author" content="Yossi Eliaz" />
+<link rel="canonical" href="https://zozo123.github.io/inferoa-demo/" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://zozo123.github.io/inferoa-demo/" />
+<meta property="og:title" content="Inferoa flight recorder (unofficial demo)" />
+<meta property="og:description" content="Client-side simulation of Inferoa's token mechanics plus receipts from real vLLM runs in islo.dev sandboxes." />
+<meta property="og:image" content="https://zozo123.github.io/inferoa-demo/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Inferoa flight recorder, an unofficial demo by Yossi Eliaz: 97.8% measured prefix-cache hit rate on a real vLLM run" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Inferoa flight recorder (unofficial demo)" />
+<meta name="twitter:description" content="Client-side simulation of Inferoa's token mechanics plus receipts from real vLLM runs in islo.dev sandboxes." />
+<meta name="twitter:image" content="https://zozo123.github.io/inferoa-demo/og.png" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Inferoa flight recorder: an unofficial demo of inference-native agent mechanics",
+  "description": "Client-side simulation of Inferoa's prefix caching, context reduction and routing, plus receipts from real Inferoa 0.11.0 and vLLM 0.22.1 runs in islo.dev sandboxes.",
+  "url": "https://zozo123.github.io/inferoa-demo/",
+  "image": "https://zozo123.github.io/inferoa-demo/og.png",
+  "datePublished": "2026-06-10",
+  "about": {"@type": "SoftwareApplication", "name": "Inferoa", "url": "https://github.com/agentic-in/inferoa"},
+  "author": {
+    "@type": "Person",
+    "name": "Yossi Eliaz",
+    "url": "https://yossieliaz.netlify.app/",
+    "sameAs": ["https://github.com/zozo123", "https://www.linkedin.com/in/yossi-eliaz/"]
+  }
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -17,7 +49,7 @@
   --line2:#3a3a2c;
   --ink:#ece9dd;
   --mut:#8d8a78;
-  --dim:#55523f;
+  --dim:#8a866f;
   --amber:#ffb454;
   --amber-hot:#ff8e3c;
   --cyan:#5fd7c5;
@@ -51,9 +83,10 @@ body::after{
 .wrap{max-width:1100px;margin:0 auto;padding:0 22px;position:relative;z-index:1}
 
 /* ---------- masthead ---------- */
-.mast{display:flex;justify-content:space-between;align-items:center;
+.mast{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 18px;
   padding:16px 0;border-bottom:1px solid var(--line);font-size:12px;color:var(--mut)}
 .mast .id{color:var(--amber);letter-spacing:.08em}
+.mast .id .by{color:var(--mut);letter-spacing:0}
 .mast a{color:var(--mut);text-decoration:none;border-bottom:1px dotted var(--dim)}
 .mast a:hover{color:var(--amber)}
 
@@ -66,6 +99,7 @@ body::after{
 .hero h1 em{font-style:italic;color:var(--amber)}
 .hero .sub{margin-top:22px;max-width:58ch;color:var(--mut);font-size:15px}
 .hero .sub b{color:var(--ink);font-weight:500}
+.hero .sub a{color:var(--cyan)}
 .runline{display:flex;gap:14px;align-items:center;margin-top:34px;flex-wrap:wrap}
 button{
   font-family:var(--mono);font-size:13px;cursor:pointer;border-radius:4px;
@@ -90,7 +124,7 @@ button:disabled{opacity:.4;cursor:default}
 
 /* ---------- console grid ---------- */
 .console{display:grid;grid-template-columns:1.45fr 1fr;gap:14px;margin:26px 0 14px}
-@media(max-width:840px){.console{grid-template-columns:1fr}}
+@media(max-width:840px){.console{grid-template-columns:minmax(0,1fr)}}
 .panel{
   background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;
 }
@@ -152,7 +186,7 @@ button:disabled{opacity:.4;cursor:default}
 
 /* meters */
 .meters{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
-@media(max-width:840px){.meters{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:840px){.meters{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .meter{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 16px 14px}
 .meter .v{font-size:clamp(22px,3.4vw,34px);font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .meter .v.amber{color:var(--amber)}.meter .v.cyan{color:var(--cyan)}.meter .v.green{color:var(--green)}.meter .v.red{color:var(--red)}
@@ -176,7 +210,7 @@ button:disabled{opacity:.4;cursor:default}
 .mapcli{font-size:12.5px;color:var(--mut);border:1px dashed var(--line2);border-radius:4px;padding:9px 12px;margin-bottom:16px;text-align:center}
 .mapcli b{color:var(--ink)}.mapcli code{color:var(--amber);font-family:var(--mono)}
 .lanes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:840px){.lanes{grid-template-columns:1fr}}
+@media(max-width:840px){.lanes{grid-template-columns:minmax(0,1fr)}}
 .lane{border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:14px;display:flex;flex-direction:column}
 .lanetitle{font-size:10px;letter-spacing:.14em;color:var(--mut);text-align:center;margin-bottom:12px;text-transform:uppercase}
 .node{border:1px solid var(--line2);border-radius:5px;padding:10px 12px;text-align:center;background:var(--panel)}
@@ -193,12 +227,13 @@ button:disabled{opacity:.4;cursor:default}
 @keyframes drip{0%{top:-7px;opacity:0}15%{opacity:1}100%{top:100%;opacity:0}}
 .flow .flabel{position:absolute;left:11px;top:50%;transform:translateY(-50%);white-space:nowrap;
   font-size:10.5px;color:var(--dim)}
+@media(max-width:840px){.flow{height:52px}.flow .flabel{white-space:normal;width:calc(50vw - 76px);line-height:1.35}}
 .mapsum{margin-top:16px;font-size:12px;color:var(--mut);border-top:1px solid var(--line);padding-top:12px;line-height:1.7}
 .mapsum b{color:var(--ink)}
 
 /* e2e timeline */
 .steps{display:flex;flex-direction:column;gap:0;margin-top:8px}
-.step{display:grid;grid-template-columns:56px 1fr;gap:0 18px;position:relative;padding-bottom:34px}
+.step{display:grid;grid-template-columns:56px minmax(0,1fr);gap:0 18px;position:relative;padding-bottom:34px}
 .step::before{content:"";position:absolute;left:27px;top:44px;bottom:0;width:1px;background:var(--line2)}
 .step:last-child::before{display:none}
 .step .num{
@@ -211,7 +246,19 @@ button:disabled{opacity:.4;cursor:default}
 .step .note{color:var(--mut);font-size:13px;margin-bottom:12px;max-width:70ch}
 .step .note b{color:var(--cyan);font-weight:500}
 .step .term{margin-bottom:0}
-.step pre{font-size:12px;line-height:1.65}
+.term{background:var(--bg);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.term .bar{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg2)}
+.term .bar i{width:9px;height:9px;border-radius:50%;background:var(--line2)}
+.term pre{padding:12px 14px}
+.step pre,.term pre{font-size:12px;line-height:1.65;overflow-x:auto}
+.term .c1{color:var(--green)}.term .c2{color:var(--cyan)}.term .c3{color:var(--mut)}.term .c4{color:var(--ink)}
+.term .t-ok{color:var(--green)}.term .t-red{color:var(--red)}
+code{overflow-wrap:anywhere}
+@media(max-width:480px){
+  .step{grid-template-columns:36px minmax(0,1fr);gap:0 12px}
+  .step .num{width:36px;height:36px;font-size:18px}
+  .step::before{left:18px;top:36px}
+}
 .stamp{font-size:10px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;margin-top:8px}
 .diffline-a{color:var(--red)}
 .diffline-b{color:var(--green)}
@@ -221,8 +268,9 @@ section{padding:54px 0 10px}
 h2{font-family:var(--serif);font-weight:400;font-size:clamp(28px,4.5vw,44px);margin-bottom:8px}
 h2 em{font-style:italic;color:var(--amber)}
 .lede{color:var(--mut);max-width:62ch;margin-bottom:26px;font-size:14px}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-@media(max-width:840px){.cards{grid-template-columns:1fr}}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.cards.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:840px){.cards,.cards.two{grid-template-columns:minmax(0,1fr)}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px}
 .card .k{font-size:11px;letter-spacing:.14em;color:var(--cyan);margin-bottom:10px}
 .card h3{font-size:15px;font-weight:600;margin-bottom:8px}
@@ -233,13 +281,8 @@ h2 em{font-style:italic;color:var(--amber)}
 .qs{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:18px 20px;font-size:13.5px;line-height:2}
 .qs .p{color:var(--green)}.qs .c{color:var(--dim)}
 
-/* quote */
-.quote{border-left:2px solid var(--amber);padding:6px 0 6px 22px;max-width:70ch}
-.quote p{font-family:var(--serif);font-size:clamp(19px,2.6vw,26px);line-height:1.4;font-style:italic}
-.quote .who{margin-top:12px;font-size:12px;color:var(--mut);letter-spacing:.1em}
-
 footer{margin-top:70px;padding:26px 0 60px;border-top:1px solid var(--line);
-  font-size:12px;color:var(--mut);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:8px}
 footer a{color:var(--cyan);text-decoration:none}
 footer a:hover{text-decoration:underline}
 .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s,transform .6s}
@@ -250,20 +293,22 @@ footer a:hover{text-decoration:underline}
 <div class="wrap">
 
   <div class="mast">
-    <span class="id">INFEROA / FLIGHT RECORDER</span>
+    <span class="id">INFEROA FLIGHT RECORDER <span class="by">· unofficial demo by <a href="https://zozo123.github.io/">Yossi Eliaz</a></span></span>
     <span><a href="https://inferoa.agentic-in.ai/blog/announcing-inferoa/" target="_blank" rel="noopener">announcement</a> · built on the vLLM stack</span>
   </div>
 
   <div class="hero">
     <h1>Your agent harness is<br/><em>burning tokens.</em><br/>Watch it happen.</h1>
-    <p class="sub"><b>Inferoa</b> is an inference-native agent harness for long-horizon coding work.
-    It treats the mechanics and cost of inference — prefix caches, context shape, model routing —
-    as the design constraint, not an afterthought. Below: a turn-by-turn simulation of the same
-    coding task run through a naive harness vs. Inferoa.</p>
+    <p class="sub">An unofficial demo by <b>Yossi Eliaz</b> (June 2026) of
+    <a href="https://github.com/agentic-in/inferoa" target="_blank" rel="noopener">Inferoa</a>, an
+    inference-native agent harness built on the vLLM stack. The panel below is a client-side simulation
+    using the rates reported in the Inferoa announcement. The receipts are real runs: Inferoa 0.11.0
+    driving vLLM 0.22.1 (Qwen2.5-0.5B on CPU) in islo.dev sandboxes, with a 97.8% prefix-cache hit rate
+    read from vLLM's own counters.</p>
     <div class="runline">
-      <button class="primary" id="runBtn">▶ RUN AGENT TASK</button>
-      <button id="speedBtn">SPEED 1×</button>
-      <button id="resetBtn">RESET</button>
+      <button type="button" class="primary" id="runBtn">▶ RUN AGENT TASK</button>
+      <button type="button" id="speedBtn">SPEED 1×</button>
+      <button type="button" id="resetBtn">RESET</button>
       <span class="keyhint">task: “fix the failing auth test” · 8 turns</span>
     </div>
     <div class="honest">
@@ -280,7 +325,7 @@ footer a:hover{text-decoration:underline}
     <p class="lede">A simulation is legible; receipts are credible. We ran the real stack in isolated
     <a href="https://islo.dev" target="_blank" rel="noopener" style="color:var(--cyan)">islo.dev</a> sandboxes
     and kept the artifacts. Everything below actually executed.</p>
-    <div class="cards" style="grid-template-columns:repeat(2,1fr)">
+    <div class="cards two">
       <div class="card">
         <div class="k">REAL PREFIX CACHE · vLLM /metrics</div>
         <div class="big">97.8%</div>
@@ -386,7 +431,7 @@ footer a:hover{text-decoration:underline}
     real vLLM, real Inferoa, real metrics. Nothing here is mocked. Two pipelines, two results:</p>
 
     <div class="mapwrap">
-      <div class="mapcli">⌨ <b>laptop</b> — the <code>islo</code> CLI creates three isolated sandboxes on islo.dev · no GPU, no devops, one command each</div>
+      <div class="mapcli">⌨ <b>laptop</b> — the <code>islo</code> CLI creates three isolated sandboxes on islo.dev (CPU only, one command each)</div>
       <div class="lanes">
         <div class="lane">
           <div class="lanetitle">Pipeline 1 · measure the inference claim</div>
@@ -446,7 +491,7 @@ footer a:hover{text-decoration:underline}
           <div class="term"><div class="bar"><i></i><i></i><i></i></div>
 <pre><span class="c1">$</span> <span class="c4">islo share vllm-cpu-1781079422 8000 --ttl 24h</span>
 <span class="c2">✓</span> Share created for vllm-cpu-1781079422:8000
-  URL: <span class="c2">https://itc807adoyzwz6hzj0rkmcp7m.ca.share.islo.dev</span>
+  URL: <span class="c2">https://itc807….ca.share.islo.dev</span>
   Expires: in 1d 0h</pre></div>
           <div class="stamp">real output · share url (24h ttl — may be expired by the time you read this)</div>
         </div>
@@ -576,10 +621,6 @@ tests/test_token_refresh.py::test_expired_token_rejected PASSED
   <section class="reveal">
     <h2>Route by <em>economics,</em> not habit.</h2>
     <p class="lede">The vLLM Semantic Router sends each step where it belongs: mechanical edits and log digestion to self-hosted models at marginal cost; architectural reasoning to frontier models when capability actually pays for itself. Cost, privacy, and capability are routing inputs — not vibes.</p>
-    <div class="quote">
-      <p>“Great to see Inferoa, a community agent harness built on the vLLM stack — it designs the agent loop around the mechanics and cost of inference, with prefix-cache discipline, context optimization, and routing across self-hosted and frontier models.”</p>
-      <div class="who">— vLLM</div>
-    </div>
   </section>
 
   <!-- quickstart -->
@@ -598,7 +639,8 @@ tests/test_token_refresh.py::test_expired_token_rejected PASSED
 
   <footer>
     <span>Unofficial demo of the <a href="https://inferoa.agentic-in.ai/blog/announcing-inferoa/" target="_blank" rel="noopener">Inferoa announcement</a>. Simulation parameters from published results.</span>
-    <span>stack: vLLM Engine · Semantic Router · Omni · CodeGraph · RTK</span>
+    <span>By <a href="https://yossieliaz.netlify.app/">Yossi Eliaz</a> · June 2026 · <a href="https://zozo123.github.io/">More experiments</a> · <a href="https://github.com/zozo123/inferoa-demo">Source</a></span>
+    <span>stack: <a href="https://github.com/agentic-in/inferoa">Inferoa</a> · <a href="https://github.com/vllm-project/vllm">vLLM</a> · <a href="https://github.com/vllm-project/semantic-router">Semantic Router</a> · <a href="https://github.com/vllm-project/vllm-omni">vLLM Omni</a> · <a href="https://github.com/colbymchenry/codegraph">CodeGraph</a> · <a href="https://github.com/rtk-ai/rtk">RTK</a></span>
   </footer>
 </div>
 

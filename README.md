@@ -1,9 +1,10 @@
 # Inferoa — inference flight recorder
 
-An interactive, single-file demo of the ideas in [Announcing Inferoa](https://inferoa.agentic-in.ai/blog/announcing-inferoa/):
-an **inference-native, tokenmaxxing agent harness** for long-horizon coding work, built on the vLLM stack.
+Unofficial demo by [Yossi Eliaz](https://zozo123.github.io/) · Live: https://zozo123.github.io/inferoa-demo/ · Upstream: [agentic-in/inferoa](https://github.com/agentic-in/inferoa)
 
-**Live demo:** https://zozo123.github.io/inferoa-demo/
+An interactive, single-file demo of the ideas in [Announcing Inferoa](https://inferoa.agentic-in.ai/blog/announcing-inferoa/)
+(an inference-native agent harness for long-horizon coding work, built on the vLLM stack): a client-side
+token-cost simulation plus receipts from real vLLM runs in islo.dev sandboxes.
 
 ## What it shows
 
@@ -54,4 +55,4 @@ inferoa
 
 ---
 
-*Unofficial demo. Stack credits: vLLM Engine · vLLM Semantic Router · vLLM Omni · CodeGraph · RTK.*
+*Unofficial demo. Stack credits: [Inferoa](https://github.com/agentic-in/inferoa) · [vLLM](https://github.com/vllm-project/vllm) · [vLLM Semantic Router](https://github.com/vllm-project/semantic-router) · [vLLM Omni](https://github.com/vllm-project/vllm-omni) · [CodeGraph](https://github.com/colbymchenry/codegraph) · [RTK](https://github.com/rtk-ai/rtk).*

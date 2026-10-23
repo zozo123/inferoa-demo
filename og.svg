@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <pattern id="scan" width="4" height="3" patternUnits="userSpaceOnUse">
+      <rect width="4" height="1" y="2" fill="#000" opacity=".18"/>
+    </pattern>
+    <pattern id="cached" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="6" height="12" fill="#2a5e56"/><rect x="6" width="6" height="12" fill="#1d4640"/>
+    </pattern>
+    <pattern id="fresh" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="6" height="12" fill="#8a5a22"/><rect x="6" width="6" height="12" fill="#6e4517"/>
+    </pattern>
+    <pattern id="out" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="6" height="12" fill="#3d3d30"/><rect x="6" width="6" height="12" fill="#31312a"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0b0b09"/>
+
+  <!-- masthead -->
+  <text x="72" y="84" font-family="IBM Plex Mono, Menlo, monospace" font-size="20" letter-spacing="1.6" fill="#ffb454">INFEROA FLIGHT RECORDER</text>
+  <text x="1128" y="84" text-anchor="end" font-family="IBM Plex Mono, Menlo, monospace" font-size="20" fill="#8d8a78">unofficial demo</text>
+  <rect x="72" y="108" width="1056" height="1" fill="#26261d"/>
+
+  <!-- title -->
+  <text x="68" y="232" font-family="Georgia, serif" font-size="96" fill="#ece9dd">Inferoa <tspan font-style="italic" fill="#ffb454">flight recorder</tspan></text>
+  <text x="72" y="290" font-family="IBM Plex Mono, Menlo, monospace" font-size="24" fill="#8d8a78">Simulated token mechanics + receipts from real vLLM runs</text>
+
+  <!-- context bar, as on the page -->
+  <rect x="72" y="336" width="1056" height="40" rx="4" fill="#0b0b09" stroke="#3a3a2c"/>
+  <rect x="73" y="337" width="826" height="38" fill="url(#cached)"/>
+  <rect x="899" y="337" width="150" height="38" fill="url(#fresh)"/>
+  <rect x="1049" y="337" width="78" height="38" fill="url(#out)"/>
+
+  <!-- stat -->
+  <text x="72" y="490" font-family="IBM Plex Mono, Menlo, monospace" font-size="84" font-weight="700" fill="#5fd7c5">97.8%</text>
+  <text x="400" y="452" font-family="IBM Plex Mono, Menlo, monospace" font-size="24" fill="#ece9dd">measured prefix-cache hit rate</text>
+  <text x="400" y="486" font-family="IBM Plex Mono, Menlo, monospace" font-size="24" fill="#8d8a78">(real vLLM run, Qwen2.5-0.5B on CPU)</text>
+
+  <!-- footer -->
+  <rect x="72" y="532" width="1056" height="1" fill="#26261d"/>
+  <text x="72" y="578" font-family="Georgia, serif" font-size="34" fill="#ece9dd">Yossi Eliaz</text>
+  <text x="1128" y="576" text-anchor="end" font-family="IBM Plex Mono, Menlo, monospace" font-size="20" fill="#8d8a78">zozo123.github.io/inferoa-demo</text>
+
+  <rect width="1200" height="630" fill="url(#scan)"/>
+</svg>
